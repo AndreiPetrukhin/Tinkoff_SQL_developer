@@ -331,7 +331,7 @@ select
 	 greatest (1, (count(ld.grade) + count(ld.grade_extra))) as GPA_student	 
 from lessons_diary ld 
 join lessons l on l.id = ld.lesson_id 
-where extract('quarter' from l.dt) in (1, 2) and extract('year' from l.dt) = 2022
+where extract('quarter' from l.dt) in (1, 2) and extract('year' from l.dt) = 2021
 group by ld.student_id),
 GPA_class as (
 select 
@@ -341,7 +341,7 @@ select
 	 greatest (1, (count(ld.grade) + count(ld.grade_extra))) as GPA_class	 
 from lessons_diary ld 
 join lessons l on l.id = ld.lesson_id 
-where extract('quarter' from l.dt) in (1, 2) and extract('year' from l.dt) = 2022
+where extract('quarter' from l.dt) in (1, 2) and extract('year' from l.dt) = 2021
 group by l.class_id)
 select 
 	st.first_name AS student_first_name,
