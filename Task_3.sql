@@ -44,29 +44,30 @@ create table students (
 );
 
 -- специализации учителей
+--drop table specialities ;
 create table specialities (
  id  integer not null primary key,
- name varchar(50) not null--наименование специализации
-);
+ name specialities_list not null unique check ("name" in ('Математика', 'Рисование', 'История'))--наименование специализации
+);-- наименовние + ограничение уникальности, чтобы избежать дубликатов + проверка на корректность написания
 
 insert into specialities (id, name)
-values (1, 'Math');
+values (1, 'Математика');
 
 -- виды уроков (математика, литература, химия etc)
+--drop table lesson_types ;
 create table lesson_types (
  id  integer not null primary key,
- name varchar(20) not null--наименование урока
-);
+ name varchar(20) not null unique check ("name" in ('Математика', 'Рисование', 'История'))--наименование урока + ограничение уникальности, чтобы избежать дуликатов
+);-- наименовние + ограничение уникальности, чтобы избежать дубликатов + проверка на корректность написания
 
 -- классные комнаты
 create table classrooms (
  id                          integer not null primary key,
- floor                       integer not null, --номер этажа
- num                         integer not null,--номер класса
+ num                         char(3) not null unique,--номер класса + ограничение уникальности, чтобы избежать дубликатов + изменен формат (1-ая цифра номер этажа, 2 и 3 цыфры номер кабинета на этаже)
  capacity                    integer,--вместительность учеников
- has_projector               integer not null check (has_projector in (1, 0)),--признак наличия в помещении проектора 
- has_interactive_school_board integer not null check (has_interactive_school_board in (1, 0)),--признак наличия в помещении интерактивной доски
- is_temporary_closed         integer not null check (is_temporary_closed in (1, 0))--признак недоступности помещения (ремонт, etc)
+ has_projector               boolean not null check (has_projector in ('1', '0')),--признак наличия в помещении проектора + формат изменен на boolean (уменьшаем потребление памяти в 4 раза)
+ has_interactive_school_board boolean not null check (has_interactive_school_board in ('1', '0')),--признак наличия в помещении интерактивной доски + формат изменен на boolean (уменьшаем потребление памяти в 4 раза)
+ is_temporary_closed         boolean not null check (is_temporary_closed in ('1', '0'))--признак недоступности помещения (ремонт, etc) + формат изменен на boolean (уменьшаем потребление памяти в 4 раза)
 );
 
 -- учителя
@@ -75,7 +76,7 @@ create table teachers_personal (
  first_name   varchar(50) not null,--имя
  last_name    varchar(50) not null,--фамилия
  birthdate    date    not null,--день рождения
- male         varchar(1) not null check(male in ('M','F'))--пол
+ male         char(1) not null check(male in ('M','F'))--пол + формат изменен на char(1) (уменьшаем потребление памяти в примерно 4 раза) 
  );
 
 --insert into teachers_personal (id,first_name,last_name,birthdate,male)
@@ -87,8 +88,9 @@ create table teachers (
  id 		  integer  not null primary key,
  tp_id        integer  not null,
  start_date   date    not null,--дата, когда был нанят на работы
- end_date     date,--дата, когда был уволен с работы
+ end_date     date, --дата, когда был уволен с работы, null - преподает в настоящий момент времени
  speciality_id integer  not null,--специализация
+ unique (tp_id, speciality_id), --ограничение уникальности, чтобы избежать дубликатов, но один учитель может иметь два специальности
  constraint speciality_id_specialities_id_fkey FOREIGN KEY (speciality_id) REFERENCES specialities(id),
  constraint teachers_id_tp_id_fkey FOREIGN KEY (tp_id) REFERENCES teachers_personal(id)
 );
@@ -99,23 +101,25 @@ create table teachers (
 --select * from teachers_history ;
 
 -- ученические классы
---drop table classes;
+--drop table classes_info;
 create table classes_info (
  id          integer not null primary key,
- letter      varchar(1) not null, --буква класса: А/Б/В etc
+ letter      char(1) not null, --буква класса: А/Б/В etc + формат изменен на char(1) (уменьшаем потребление памяти в примерно 4 раза)
  "name"      varchar(20), --имя класса, выбранное по желанию учеников (напр, имена принято выбирать по названиям галактик: Андромеда, Млечный Путь, Скульптор etc)
  start_year  date not null,--год, когда класс был сформирован из первоклашек 
- end_year    date  --год окончания школы учениками класса
+ end_year    date,  --год окончания школы учениками класса, null - учатся в настоящий момент времени
+ unique (letter, start_year) --ограничение уникальности, чтобы избежать дубликатов (не может быть классов с одной букво и одного года)
 );
 
 -- ученические классы
 --drop table classes;
 create table classes (
  id          integer not null primary key,
- ci_id		 integer not null,
+ ci_id		 integer not null unique, --ограничение уникальности, чтобы избежать дубликатов (у одного класса только один классный руководитель)
  form_teacher integer not null, --классный руководитель
  head_student integer,  --староста
  main_class  integer, --основная классная комната 
+ unique (ci_id, form_teacher), --ограничение уникальности, чтобы избежать дубликатов (один учитель может быть руководителем у двух классов)
  constraint form_teacher_teachers_id_fkey FOREIGN KEY (form_teacher) REFERENCES teachers(id),
  constraint head_student_students_id_fkey FOREIGN KEY (head_student) REFERENCES students(id),
  constraint main_class_classrooms_id_fkey FOREIGN KEY (main_class) REFERENCES classrooms(id),
@@ -123,17 +127,19 @@ create table classes (
 );
 
 -- связка классов и учеников
+--drop table class_students_map;
 create table class_students_map (
  class_id  integer not null,
  student_id integer not null,--дата зачисления в класс
  start_date date  not null, --дата отчисления из класса
  end_date  date,
- CONSTRAINT class_id_student_id_pkey PRIMARY KEY (class_id, student_id),
+ unique (class_id, student_id, start_date), --ограничение уникальности, чтобы избежать дубликатов (при этом ученик может вернуться в свой класс после того как покинул его)
  constraint class_id_classes_id_fkey FOREIGN KEY (class_id) REFERENCES classes(id),
  constraint student_id_students_id_fkey FOREIGN KEY (student_id) REFERENCES students(id)
 );
 
 -- связка специальностей учителей и видов уроков
+--drop table speciality_lesson_types_map;
 create table speciality_lesson_types_map (
  speciality_id integer not null,
  lesson_type_id integer not null,
@@ -150,20 +156,21 @@ create table lessons (
  teacher_id  integer not null ,--учитель, проводивший урок 
  class_id    integer not null ,--класс, присутствующий на занятии
  classroom_id integer not null ,--классная комната, где проводился урок
+ unique (dt, lesson_type, teacher_id, class_id, classroom_id), --ограничение уникальности, чтобы избежать дубликатов
  constraint lesson_type_lesson_types_id_fkey FOREIGN KEY (lesson_type) REFERENCES lesson_types(id),
  constraint teacher_id_teachers_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id),
  CONSTRAINT class_id_class_id_fkey FOREIGN KEY (class_id) REFERENCES classes(id),
  constraint classroom_id_classrooms_id_fkey FOREIGN KEY (classroom_id) REFERENCES classrooms(id)
 );
 
--- дневник успеваемости и посещения
+-- дневник успеваемости и посещения 
 --drop table lessons_diary;
 create table lessons_diary (
  lesson_id  integer not null ,
  student_id integer not null ,
- is_absent  integer not null check (is_absent in (1, 0)),--признак отсутствия на уроке
- grade      integer,--полученная на уроке оценка
- grade_extra integer,--полученная на уроке оценка (дополнительная)
+ is_absent  boolean not null check (is_absent in ('1', '0')),--признак отсутствия на уроке + формат изменен на boolean (уменьшаем потребление памяти в 4 раза)
+ grade      numeric(1, 0),--полученная на уроке оценка + изменен формат (сокращаем потребление памяти в 4 раза)
+ grade_extra numeric(1, 0),--полученная на уроке оценка (дополнительная) + изменен формат (сокращаем потребление памяти в 4 раза)
  CONSTRAINT lesson_id_student_id_pkey PRIMARY KEY (lesson_id, student_id),
  constraint lesson_id_lessons_id_fkey FOREIGN KEY (lesson_id) REFERENCES lessons(id),
  constraint student_id_students_id_fkey FOREIGN KEY (student_id) REFERENCES students(id)
